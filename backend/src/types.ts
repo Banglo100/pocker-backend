@@ -12,17 +12,27 @@ export interface Player {
   cards: Card[];
   isBot: boolean;
   botDifficulty?: 'easy' | 'medium' | 'hard';
+  isSpectator?: boolean;
+  showHand?: boolean;
+  userId?: string;
+  connected?: boolean;
+  disconnectTime?: number;
 }
 
-export type GameState = 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown';
+export type GameState = 'lobby' | 'preflop' | 'flop' | 'turn' | 'river' | 'showdown' | 'results';
 
 export interface Room {
   id: string;
+  hostId: string;
+  name: string;
+  isPrivate: boolean;
+  password?: string;
   settings: {
     maxPlayers: number;
     startingChips: number;
     smallBlind: number;
     bigBlind: number;
+    turnTimer: number;
   };
   players: Player[];
   state: GameState;
@@ -34,4 +44,8 @@ export interface Room {
   deck: Card[];
   winners?: { player: Player, handName: string, amount: number }[];
   actionHistory: string[];
+  chipHistory: { id: string; name: string; isBot: boolean; history: number[] }[];
+  turnStartTime?: number;
+  emptySince?: number;
+  pendingStatUpdates: { userId: string, type: 'handPlayed' | 'handWon', amount?: number }[];
 }
