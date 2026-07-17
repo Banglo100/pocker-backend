@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import Lobby from './components/Lobby';
 import PokerTable from './components/PokerTable';
 
-const socket = io('https://pokerbackend-kgrez99z.b4a.run/');
+const socket = io('https://pokerbackend-kgrez99z.b4a.run');
 
 // Generate or retrieve persistent userId
 let userId = localStorage.getItem('userId');
