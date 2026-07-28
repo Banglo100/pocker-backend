@@ -1,9 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import Lobby from './components/Lobby';
 import PokerTable from './components/PokerTable';
 
-const socket = io('https://pokerbackend-kgrez99z.b4a.run');
+const socket = io('https://pokerbackend-kgrez99z.b4a.run/', {
+  reconnectionAttempts: 10,
+  reconnectionDelay: 2000,
+  timeout: 10000,
+});
 
 // Generate or retrieve persistent userId
 let userId = localStorage.getItem('userId');
@@ -12,9 +16,43 @@ if (!userId) {
   localStorage.setItem('userId', userId);
 }
 
-function LoadingScreen() {
+function LoadingScreen({ connectionStatus, connectError, onRetry }) {
+  if (connectionStatus === 'error') {
+    return (
+      <div className="d-flex flex-col h-full w-full items-center justify-center p-4" style={{ background: 'var(--bg-color)', zIndex: 9999, minHeight: '100vh' }}>
+        <div className="glass d-flex flex-col items-center text-center" style={{ padding: '2.5rem', borderRadius: '16px', maxWidth: '480px', width: '90%', border: '1px solid var(--danger)' }}>
+          <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>⚠️</div>
+          <h2 style={{ color: 'var(--danger)', marginBottom: '0.5rem' }}>Backend Host Failed</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '1rem', fontSize: '0.95rem' }}>
+            Unable to establish connection to backend server:
+            <br />
+            <code style={{ background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'inline-block', marginTop: '0.5rem', wordBreak: 'break-all' }}>
+              https://pokerbackend-kgrez99z.b4a.run/
+            </code>
+          </p>
+          {connectError && (
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#f87171', padding: '0.75rem', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '1.25rem', width: '100%', wordBreak: 'break-word' }}>
+              Details: {connectError}
+            </div>
+          )}
+          <p style={{ fontSize: '0.85rem', opacity: 0.8, marginBottom: '1.5rem', lineHeight: '1.4' }}>
+            Note: Back4App free tier containers spin down when idle and can take up to 60 seconds to start up.
+          </p>
+          <div style={{ display: 'flex', gap: '1rem', width: '100%' }}>
+            <button className="primary" onClick={onRetry} style={{ flex: 1, padding: '0.75rem' }}>
+              🔄 Retry Connection
+            </button>
+            <button className="secondary" onClick={() => window.location.reload()} style={{ flex: 1, padding: '0.75rem' }}>
+              Reload Page
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="d-flex flex-col h-full w-full items-center justify-center" style={{ background: 'var(--bg-color)', zIndex: 9999 }}>
+    <div className="d-flex flex-col h-full w-full items-center justify-center" style={{ background: 'var(--bg-color)', zIndex: 9999, minHeight: '100vh' }}>
       <div className="glass d-flex flex-col items-center justify-center" style={{ padding: '3rem', borderRadius: '50%', width: '300px', height: '300px' }}>
         <div className="chip-animation">
           <div className="chip-inner"></div>
@@ -31,6 +69,8 @@ function App() {
   const [roomsList, setRoomsList] = useState([]);
   const [error, setError] = useState('');
   const [connected, setConnected] = useState(socket.connected);
+  const [connectionStatus, setConnectionStatus] = useState(socket.connected ? 'connected' : 'connecting');
+  const [connectError, setConnectError] = useState('');
 
   const [stats, setStats] = useState(() => {
     return {
@@ -41,9 +81,52 @@ function App() {
     };
   });
 
+  // Block Web Inspector & Developer Tools shortcuts
   useEffect(() => {
-    socket.on('connect', () => {
+    const disableContextMenu = (e) => e.preventDefault();
+    const disableDevToolsKeys = (e) => {
+      if (
+        e.key === 'F12' ||
+        (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) ||
+        (e.ctrlKey && (e.key === 'U' || e.key === 'u')) ||
+        (e.metaKey && (e.key === 'U' || e.key === 'u'))
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        return false;
+      }
+    };
+
+    document.addEventListener('contextmenu', disableContextMenu);
+    document.addEventListener('keydown', disableDevToolsKeys);
+
+    return () => {
+      document.removeEventListener('contextmenu', disableContextMenu);
+      document.removeEventListener('keydown', disableDevToolsKeys);
+    };
+  }, []);
+
+  const retryConnect = useCallback(() => {
+    setConnectionStatus('connecting');
+    setConnectError('');
+    socket.connect();
+  }, []);
+
+  useEffect(() => {
+    // 12 second connection fallback timer
+    const connectionTimer = setTimeout(() => {
+      if (!socket.connected) {
+        setConnectionStatus('error');
+        setConnectError('Backend host timed out. Server might be sleeping or unreachable.');
+      }
+    }, 12000);
+
+    const onConnect = () => {
+      clearTimeout(connectionTimer);
       setConnected(true);
+      setConnectionStatus('connected');
+      setConnectError('');
       socket.emit('getRooms');
 
       // Attempt to rejoin if we were already in a room
@@ -51,11 +134,24 @@ function App() {
       if (savedRoomId && nickname) {
         socket.emit('joinRoom', { roomId: savedRoomId, playerName: nickname, userId });
       }
-    });
+    };
 
-    socket.on('disconnect', () => {
+    const onConnectError = (err) => {
+      clearTimeout(connectionTimer);
       setConnected(false);
-    });
+      setConnectionStatus('error');
+      setConnectError(err?.message || 'Failed to connect to backend server');
+    };
+
+    const onDisconnect = () => {
+      setConnected(false);
+      setConnectionStatus('error');
+      setConnectError('Disconnected from server');
+    };
+
+    socket.on('connect', onConnect);
+    socket.on('connect_error', onConnectError);
+    socket.on('disconnect', onDisconnect);
 
     socket.on('roomsList', (list) => {
       setRoomsList(list);
@@ -101,8 +197,10 @@ function App() {
     socket.on('statUpdate', onStatUpdate);
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
+      clearTimeout(connectionTimer);
+      socket.off('connect', onConnect);
+      socket.off('connect_error', onConnectError);
+      socket.off('disconnect', onDisconnect);
       socket.off('roomUpdate');
       socket.off('roomsList');
       socket.off('error');
@@ -179,8 +277,8 @@ function App() {
     }
   };
 
-  if (!connected) {
-    return <LoadingScreen />;
+  if (!connected || connectionStatus !== 'connected') {
+    return <LoadingScreen connectionStatus={connectionStatus} connectError={connectError} onRetry={retryConnect} />;
   }
 
   return (
