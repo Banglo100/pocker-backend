@@ -3,10 +3,10 @@ import { io } from 'socket.io-client';
 import Lobby from './components/Lobby';
 import PokerTable from './components/PokerTable';
 
-const socket = io('pokerbackend-9qfp0yj5.b4a.run', {
+const socket = io('https://pokerbackend-9qfp0yj5.b4a.run/', {
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
-  timeout: 10000,
+  timeout: 8000,
 });
 
 // Generate or retrieve persistent userId
@@ -27,7 +27,7 @@ function LoadingScreen({ connectionStatus, connectError, onRetry }) {
             Unable to establish connection to backend server:
             <br />
             <code style={{ background: 'rgba(255,255,255,0.1)', padding: '0.2rem 0.5rem', borderRadius: '4px', display: 'inline-block', marginTop: '0.5rem', wordBreak: 'break-all' }}>
-              https://pokerbackend-kgrez99z.b4a.run/
+              https://pokerbackend-9qfp0yj5.b4a.run/
             </code>
           </p>
           {connectError && (
@@ -114,13 +114,13 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // 12 second connection fallback timer
+    // 6 second connection fallback timer
     const connectionTimer = setTimeout(() => {
       if (!socket.connected) {
         setConnectionStatus('error');
         setConnectError('Backend host timed out. Server might be sleeping or unreachable.');
       }
-    }, 12000);
+    }, 6000);
 
     const onConnect = () => {
       clearTimeout(connectionTimer);
