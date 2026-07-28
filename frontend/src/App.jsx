@@ -4,6 +4,7 @@ import Lobby from './components/Lobby';
 import PokerTable from './components/PokerTable';
 
 const socket = io('https://pokerbackend-9qfp0yj5.b4a.run/', {
+  transports: ['polling', 'websocket'],
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
   timeout: 8000,
@@ -110,17 +111,23 @@ function App() {
   const retryConnect = useCallback(() => {
     setConnectionStatus('connecting');
     setConnectError('');
-    socket.connect();
+    if (socket.connected) {
+      setConnected(true);
+      setConnectionStatus('connected');
+      socket.emit('getRooms');
+    } else {
+      socket.connect();
+    }
   }, []);
 
   useEffect(() => {
-    // 6 second connection fallback timer
+    // 5 second connection fallback timer
     const connectionTimer = setTimeout(() => {
       if (!socket.connected) {
         setConnectionStatus('error');
         setConnectError('Backend host timed out. Server might be sleeping or unreachable.');
       }
-    }, 6000);
+    }, 5000);
 
     const onConnect = () => {
       clearTimeout(connectionTimer);
@@ -152,6 +159,11 @@ function App() {
     socket.on('connect', onConnect);
     socket.on('connect_error', onConnectError);
     socket.on('disconnect', onDisconnect);
+
+    // If socket is already connected when component mounts, invoke onConnect immediately
+    if (socket.connected) {
+      onConnect();
+    }
 
     socket.on('roomsList', (list) => {
       setRoomsList(list);
