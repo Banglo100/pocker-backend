@@ -8,11 +8,22 @@ import { getBotAction } from './bot';
 
 const app = express();
 app.use(cors());
+
+app.get('/', (req, res) => {
+  res.json({ status: 'online', service: 'Poker Backend API' });
+});
+
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
     origin: '*',
-  }
+    methods: ['GET', 'POST']
+  },
+  transports: ['polling', 'websocket']
 });
 
 const rooms: Record<string, Room> = {};
