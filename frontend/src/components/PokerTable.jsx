@@ -59,42 +59,45 @@ function PokerTable({ room, socketId, userId, onLeave, onAddBot, onRemoveBot, on
   const isHost = room.hostId === socketId;
 
   return (
-    <div className="d-flex flex-col h-full w-full" style={{ flex: 1, position: 'relative' }}>
+    <div className="d-flex flex-col h-full w-full" style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
       
-      {/* Header Info */}
-      <div className="poker-header d-flex justify-between items-center" style={{ padding: '1rem' }}>
+      {/* Top Header Bar */}
+      <div className="poker-header d-flex justify-between items-center">
         <div>
           <h2 className="room-title">Room: {room.name} {room.isPrivate ? '🔒' : ''}</h2>
-          <span style={{ color: 'var(--text-muted)' }}>Blinds: {room.settings.smallBlind}/{room.settings.bigBlind}</span>
+          <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Blinds: {room.settings.smallBlind}/{room.settings.bigBlind}</span>
         </div>
-        <div className="d-flex gap-2">
+
+        {/* Lobby Bot Controls */}
+        {room.state === 'lobby' && (
+          <div className="lobby-controls d-flex justify-center items-center gap-2">
+            {isHost ? (
+              <>
+                <button className="bot-btn" onClick={() => onAddBot('easy')}>+ Easy Bot</button>
+                <button className="bot-btn" onClick={() => onAddBot('medium')}>+ Medium Bot</button>
+                <button className="bot-btn" onClick={() => onAddBot('hard')}>+ Hard Bot</button>
+                <button className="success start-btn" onClick={onStart}>▶ Start Game</button>
+              </>
+            ) : (
+              <span className="glass" style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', color: '#fbbf24' }}>
+                Waiting for host to start...
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className="d-flex gap-2 items-center">
           {isHost && room.state !== 'lobby' && (
-            <button className="danger" onClick={onEndMatch}>End Match</button>
+            <button className="danger" onClick={onEndMatch} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>End Match</button>
           )}
-          <button className="danger" onClick={onLeave}>Leave Room</button>
+          <button className="danger" onClick={onLeave} style={{ padding: '0.5rem 1rem', fontSize: '0.9rem' }}>Leave Room</button>
         </div>
       </div>
 
-      {/* Lobby Controls */}
-      {room.state === 'lobby' && (
-        <div className="lobby-controls d-flex justify-center gap-4" style={{ zIndex: 10 }}>
-          {isHost ? (
-            <>
-              <button onClick={() => onAddBot('easy')}>+ Easy Bot</button>
-              <button onClick={() => onAddBot('medium')}>+ Medium Bot</button>
-              <button onClick={() => onAddBot('hard')}>+ Hard Bot</button>
-              <button className="success" onClick={onStart}>Start Game</button>
-            </>
-          ) : (
-            <h3 style={{ padding: '1rem', background: 'rgba(0,0,0,0.5)', borderRadius: '8px' }}>Waiting for host to start...</h3>
-          )}
-        </div>
-      )}
-
       {/* Winners Display */}
       {room.winners && room.state === 'showdown' && (
-        <div className="d-flex justify-center" style={{ zIndex: 10, position: 'absolute', top: '150px', width: '100%' }}>
-          <div className="glass winner-announcement" style={{ padding: '1rem 2rem', background: 'rgba(16, 185, 129, 0.2)', border: '1px solid #10b981', textAlign: 'center' }}>
+        <div className="d-flex justify-center" style={{ zIndex: 45, position: 'absolute', top: '90px', width: '100%' }}>
+          <div className="glass winner-announcement" style={{ padding: '1rem 2rem', background: 'rgba(16, 185, 129, 0.25)', border: '1px solid #10b981', textAlign: 'center' }}>
             <h3>Winners</h3>
             {room.winners.map((w, i) => (
               <div key={i}>
@@ -106,17 +109,18 @@ function PokerTable({ room, socketId, userId, onLeave, onAddBot, onRemoveBot, on
         </div>
       )}
 
-      {/* Table Area */}
-      <div className="poker-table">
-        {/* Community Cards */}
-        <div className="community-cards">
-          {room.communityCards.map((c, i) => <Card key={i} card={c} />)}
-        </div>
-        
-        {/* Pot */}
-        <div className="pot-display glass">
-          Pot: {room.pot}
-        </div>
+      {/* Main Table Area Wrapper */}
+      <div className="poker-table-wrapper">
+        <div className="poker-table">
+          {/* Community Cards */}
+          <div className="community-cards">
+            {room.communityCards.map((c, i) => <Card key={i} card={c} />)}
+          </div>
+          
+          {/* Pot */}
+          <div className="pot-display glass">
+            Pot: {room.pot}
+          </div>
 
         {/* Players */}
         {room.players.map((p, index) => {
@@ -162,6 +166,7 @@ function PokerTable({ room, socketId, userId, onLeave, onAddBot, onRemoveBot, on
           );
         })}
       </div>
+    </div>
 
       {/* Action History Log */}
       <div className="glass action-log">
