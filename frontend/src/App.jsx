@@ -3,7 +3,7 @@ import { io } from 'socket.io-client';
 import Lobby from './components/Lobby';
 import PokerTable from './components/PokerTable';
 
-const socket = io('https://pokerbackend-kgrez99z.b4a.run/', {
+const socket = io('pokerbackend-9qfp0yj5.b4a.run', {
   reconnectionAttempts: 10,
   reconnectionDelay: 2000,
   timeout: 10000,
